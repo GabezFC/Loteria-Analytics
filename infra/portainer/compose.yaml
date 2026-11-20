@@ -1,0 +1,14 @@
+name: cassino-admin
+services:
+  portainer:
+    image: portainer/portainer-ce:2.39.8
+    restart: unless-stopped
+    ports: ['127.0.0.1:9443:9443']
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - portainer_data:/data
+    logging:
+      driver: json-file
+      options: {max-size: "10m", max-file: "3"}
+volumes:
+  portainer_data:

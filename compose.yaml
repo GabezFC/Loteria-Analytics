@@ -1,0 +1,93 @@
+name: cassino
+x-restart: &defaults
+  restart: unless-stopped
+  logging:
+    driver: json-file
+    options: {max-size: "10m", max-file: "3"}
+services:
+  postgres:
+    <<: *defaults
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: cassino
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?configure POSTGRES_PASSWORD}
+      API_PASSWORD: ${API_PASSWORD:?configure API_PASSWORD}
+      WORKER_PASSWORD: ${WORKER_PASSWORD:?configure WORKER_PASSWORD}
+      INSPECT_PASSWORD: ${INSPECT_PASSWORD:?configure INSPECT_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infra/postgres/001-base.sh:/docker-entrypoint-initdb.d/001-base.sh:ro
+    healthcheck:
+      test: [CMD-SHELL, 'PGPASSWORD="$$API_PASSWORD" psql -h 127.0.0.1 -d cassino -U cassino_api -Atqc "select 1 from lottery_type limit 1" | grep -qx 1']
+      interval: 5s
+      timeout: 4s
+      retries: 10
+    mem_limit: 512m
+  backend:
+    <<: *defaults
+    build: ./backend
+    environment: &pg
+      PGHOST: postgres
+      PGPORT: "5432"
+      PGDATABASE: cassino
+      PGUSER: cassino_api
+      PGPASSWORD: ${API_PASSWORD:?configure API_PASSWORD}
+    depends_on:
+      postgres: {condition: service_healthy}
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:3001/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 4s
+      retries: 5
+    mem_limit: 256m
+  frontend:
+    <<: *defaults
+    build: ./frontend
+    depends_on:
+      backend: {condition: service_healthy}
+    ports: ['127.0.0.1:3000:80']
+    healthcheck:
+      test: [CMD, wget, -q, -O, /dev/null, 'http://127.0.0.1/']
+      interval: 10s
+      timeout: 4s
+      retries: 5
+    mem_limit: 128m
+  coletor: &worker
+    <<: *defaults
+    build: ./workers
+    environment:
+      <<: *pg
+      PGUSER: cassino_worker
+      PGPASSWORD: ${WORKER_PASSWORD:?configure WORKER_PASSWORD}
+      WORKER_ROLE: coletor
+    depends_on:
+      postgres: {condition: service_healthy}
+    healthcheck:
+      test: [CMD, python, probe.py, --health]
+      interval: 10s
+      timeout: 4s
+      retries: 5
+    mem_limit: 256m
+  analisador:
+    <<: *worker
+    environment:
+      <<: *pg
+      PGUSER: cassino_worker
+      PGPASSWORD: ${WORKER_PASSWORD:?configure WORKER_PASSWORD}
+      WORKER_ROLE: analisador
+    mem_limit: 768m
+  cloudbeaver:
+    <<: *defaults
+    image: dbeaver/cloudbeaver:26.2.3
+    ports: ['127.0.0.1:8978:8978']
+    volumes: ['cloudbeaver_workspace:/opt/cloudbeaver/workspace']
+    depends_on:
+      postgres: {condition: service_healthy}
+    mem_limit: 1536m
+networks:
+  default:
+    driver: bridge
+volumes:
+  postgres_data:
+  cloudbeaver_workspace:
