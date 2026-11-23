@@ -1,0 +1,5 @@
+# Opcional: aplicar somente depois de verificar o firewall do host Windows.
+services:
+  frontend:
+    ports:
+      - '192.168.0.121:3000:8080'

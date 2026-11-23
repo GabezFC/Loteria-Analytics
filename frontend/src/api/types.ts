@@ -493,8 +493,15 @@ export interface SuggestionDetail {
     ticket_count: number | null;
     based_on_contest: number | null;
     created_at: string;
-    explanation: string | null;
-    evidence: null | { experiment_id: string; model_name: string; verdict: string };
+    explanation: null | {
+      text: string;
+      version: string;
+      strategy: Strategy;
+      seed: number;
+      based_on_contest: number;
+      evidence_note: string | null;
+    };
+    evidence: null | { experiment_id: number; model_name: string; verdict: string };
     jackpot_probability: { event: string; numerator: string; denominator: string; probability: number } | null;
     total_cost: string | number | null;
   };

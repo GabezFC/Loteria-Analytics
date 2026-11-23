@@ -5,7 +5,7 @@ import { LOTTERIES, STRATEGIES } from '../api/types';
 import { useApi, clearCache } from '../lib/useApi';
 import { AsyncView, Balls, Card, Empty, Field, Notice, PageHeader, Skeleton, Stat, Table, Tag } from '../components/ui';
 import { fmtBRL, fmtDateTime, fmtFraction, fmtInt, fmtNum, fmtOneIn, fmtProb } from '../lib/format';
-import { LOTTERY_NAMES, STATUS_LABELS, STRATEGY_LABELS } from '../lib/names';
+import { LOTTERY_NAMES, STATUS_LABELS, STRATEGY_LABELS, VERDICT_LABELS } from '../lib/names';
 import { href } from '../lib/router';
 
 const STRATEGY_HELP: Record<Strategy, string> = {
@@ -25,30 +25,33 @@ function Disclaimer() {
 
 function Result({ d }: { d: SuggestionDetail }) {
   const s = d.set;
+  const evidenceNote = s.explanation?.evidence_note;
   return (
     <>
       <Card title={'Conjunto #' + s.id + ' — ' + (LOTTERY_NAMES[s.lottery_slug] ?? s.lottery_slug)}>
         <div className="stats">
           <Stat label="Estratégia" value={STRATEGY_LABELS[s.strategy] ?? s.strategy} />
           <Stat label="Bilhetes" value={fmtInt(s.ticket_count)} />
-          <Stat label="Custo total" value={fmtBRL(s.total_cost)} hint={s.budget !== null ? 'orçamento ' + fmtBRL(s.budget) : undefined} />
-          <Stat label="Base de dados" value={s.based_on_contest !== null ? 'até o concurso ' + fmtInt(s.based_on_contest) : '—'} />
+          <Stat label="Custo total" value={fmtBRL(s.total_cost)} hint={s.budget != null ? 'orçamento ' + fmtBRL(s.budget) : undefined} />
+          <Stat label="Base de dados" value={s.based_on_contest != null ? 'até o concurso ' + fmtInt(s.based_on_contest) : '—'} />
         </div>
-        {s.explanation && <p>{s.explanation}</p>}
+        {typeof s.explanation?.text === 'string' && <p>{s.explanation.text}</p>}
         {s.jackpot_probability && (
           <p>
             <strong>Probabilidade matemática exata</strong> ({s.jackpot_probability.event}): {fmtFraction(s.jackpot_probability)} ≈ {fmtProb(s.jackpot_probability.probability)} — {fmtOneIn(null, s.jackpot_probability)}.
           </p>
         )}
         <p className="small muted">
-          seed {String(s.seed ?? '—')} · criado em {fmtDateTime(s.created_at)} · vantagem preditiva validada: <strong>{d.predictive_advantage_validated ? 'sim' : 'não'}</strong> · uso ilustrativo: {d.illustrative_only ? 'sim' : 'não'}
+          seed {String(s.seed ?? '—')} · criado em {fmtDateTime(s.created_at)}
+          {typeof s.explanation?.version === 'string' && <> · versão do gerador: {s.explanation.version}</>}
+          {' · vantagem preditiva validada: '}<strong>{d.predictive_advantage_validated ? 'sim' : 'não'}</strong> · uso ilustrativo: {d.illustrative_only ? 'sim' : 'não'}
         </p>
         {s.evidence ? (
           <p className="small">
-            Evidência: experimento <a href={href('/modelos/' + s.evidence.experiment_id)}>#{s.evidence.experiment_id}</a>, modelo <code>{s.evidence.model_name}</code>, veredito <code>{s.evidence.verdict}</code>.
+            Evidência: experimento <a href={href('/modelos/' + s.evidence.experiment_id)}>#{s.evidence.experiment_id}</a>, modelo <code>{s.evidence.model_name}</code>, veredito <strong>{VERDICT_LABELS[s.evidence.verdict] ?? s.evidence.verdict}</strong>.
           </p>
         ) : (
-          <p className="small muted">Evidência: nenhum experimento sustenta esta estratégia.</p>
+          <p className="small muted">{typeof evidenceNote === 'string' && evidenceNote ? evidenceNote : 'Nenhum resultado de backtest associado a este conjunto.'}</p>
         )}
       </Card>
       <Card title="Bilhetes">
@@ -92,8 +95,16 @@ function Result({ d }: { d: SuggestionDetail }) {
 
 function Tracker({ id }: { id: string }) {
   const { state, reload } = useApi((s) => api.suggestion(id, s), [id], {
-    poll: (d: SuggestionDetail | null) => (d && (d.set.status === 'succeeded' || d.set.status === 'failed') ? null : 2000),
+    poll: (d) => (d?.set.status === 'pending' || d?.set.status === 'running' ? 2000 : null),
   });
+  if (state.status === 'error' && state.error.status === 404) {
+    return (
+      <div className="state state-info" role="status">
+        <strong>Conjunto #{id} não encontrado.</strong>
+        <p>Escolha um conjunto recente ou gere um novo.</p>
+      </div>
+    );
+  }
   return (
     <AsyncView state={state} onRetry={reload} what="A sugestão" skeleton={<Card><Skeleton lines={5} /></Card>}>
       {(d) =>

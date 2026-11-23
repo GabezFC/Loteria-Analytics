@@ -24,6 +24,7 @@ import type {
   SuggestionSummary,
   WindowInfo,
 } from './types';
+import { LOTTERIES, STRATEGIES } from './types';
 
 export class ApiError extends Error {
   readonly status: number;
@@ -139,6 +140,47 @@ export function requireItems<T>(value: unknown, what: string): { items: T[] } {
   return v as { items: T[] };
 }
 
+function isExactFraction(value: unknown): value is Record<string, unknown> {
+  return isRecord(value) && typeof value.numerator === 'string' && /^\d+$/.test(value.numerator)
+    && typeof value.denominator === 'string' && /^[1-9]\d*$/.test(value.denominator);
+}
+
+function isCost(value: unknown): boolean {
+  return (typeof value === 'number' || (typeof value === 'string' && value.trim() !== '')) && Number.isFinite(Number(value));
+}
+
+function requireSuggestion(value: unknown): SuggestionDetail {
+  const incomplete = () => new ApiError('Resposta incompleta para o conjunto de sugestões.', 502);
+  if (!isRecord(value) || !isRecord(value.set) || !Array.isArray(value.tickets)) throw incomplete();
+  const { set, tickets } = value;
+  const status = set.status;
+  if (status !== 'pending' && status !== 'running' && status !== 'failed' && status !== 'succeeded') throw incomplete();
+  // Um conjunto em processamento ou com falha pode não ter bilhetes ou metadados finais.
+  if (status !== 'succeeded') return value as unknown as SuggestionDetail;
+
+  const jackpot = set.jackpot_probability;
+  const evidence = set.evidence;
+  if (typeof set.id !== 'string'
+    || !LOTTERIES.some((lottery) => lottery === set.lottery_slug)
+    || !STRATEGIES.some((strategy) => strategy === set.strategy)
+    || (set.created_at != null && typeof set.created_at !== 'string')
+    || (set.seed != null && typeof set.seed !== 'string' && !Number.isFinite(set.seed))
+    || (set.based_on_contest != null && !Number.isInteger(set.based_on_contest))
+    || (set.budget != null && !isCost(set.budget))
+    || tickets.length === 0 || set.ticket_count !== tickets.length
+    || !isCost(set.total_cost)
+    || !isExactFraction(jackpot) || typeof jackpot.event !== 'string' || !Number.isFinite(jackpot.probability)
+    || (evidence != null && (!isRecord(evidence) || !Number.isSafeInteger(evidence.experiment_id)
+      || typeof evidence.model_name !== 'string' || typeof evidence.verdict !== 'string'))
+    || typeof value.disclaimer !== 'string'
+    || typeof value.illustrative_only !== 'boolean' || typeof value.predictive_advantage_validated !== 'boolean'
+    || !tickets.every((t: unknown) => isRecord(t) && Number.isInteger(t.position)
+      && Array.isArray(t.numbers) && t.numbers.length > 0 && t.numbers.every(Number.isInteger)
+      && Number.isFinite(t.heuristic_score) && typeof t.score_interpretation === 'string'
+      && isExactFraction(t.exact_jackpot_probability) && isCost(t.cost))) throw incomplete();
+  return value as unknown as SuggestionDetail;
+}
+
 export const api = {
   health: (signal?: AbortSignal) =>
     request<Health>('/health', { signal }).then((v) => requireKeys<Health>(v, ['status'], 'health')),
@@ -216,9 +258,7 @@ export const api = {
   suggestions: (q: { lottery?: Lottery; limit?: number } = {}, signal?: AbortSignal) =>
     request<unknown>('/suggestions', { query: q, signal }).then((v) => requireItems<SuggestionSummary>(v, 'suggestions')),
   suggestion: (id: string, signal?: AbortSignal) =>
-    request<unknown>('/suggestions/' + encodeURIComponent(id), { signal }).then((v) =>
-      requireKeys<SuggestionDetail>(v, ['set', 'tickets'], 'suggestion'),
-    ),
+    request<unknown>('/suggestions/' + encodeURIComponent(id), { signal }).then(requireSuggestion),
   createSuggestion: (body: SuggestionRequest, signal?: AbortSignal) =>
     request<{ suggestion_set_id: string; job_id: string }>('/suggestions', { method: 'POST', body, signal }),
 };
