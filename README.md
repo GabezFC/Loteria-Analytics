@@ -14,7 +14,7 @@ CAIXA (HTTPS) ◄─ coletor (Python) ─► PostgreSQL ◄─ analisador (Pytho
 CloudBeaver http://127.0.0.1:8978 (inspeção SQL, autenticado)      Portainer https://127.0.0.1:9443 (stack separada em infra/portainer)
 ```
 
-- Por padrão, somente `127.0.0.1:3000` (app), `:8978` (CloudBeaver) e `:9443` (Portainer, HTTPS) são publicados em loopback. O frontend tem uma opção LAN somente leitura. Fastify, PostgreSQL e workers não têm portas publicadas.
+- Por padrão, somente `127.0.0.1:3000` (app), `:8978` (CloudBeaver) e `:9443` (Portainer, HTTPS) são publicados em loopback. O frontend tem uma opção LAN (leitura e geração de bilhetes/experimentos; administração só em loopback). Fastify, PostgreSQL e workers não têm portas publicadas.
 - Papéis de banco com privilégio mínimo: `cassino_api` só lê (e enfileira jobs/experimentos/sugestões), `cassino_worker` grava dados analíticos, `cassino_inspect` é somente leitura (CloudBeaver).
 - Contrato da API: [docs/API.md](docs/API.md).
 
@@ -33,7 +33,7 @@ Volumes: `postgres_data`, `cloudbeaver_workspace` (Cassino) e `portainer_data` (
 
 No host Windows cujo IPv4 Ethernet é `192.168.0.121/24`, execute `scripts/permit-lan.ps1` em PowerShell elevado e confirme as duas regras no Firewall do Windows. Elas só afetam TCP 3000 nesse IP: a rede `192.168.0.0/24` pode acessar, e o bloqueio explícito impede que a regra ampla do Docker permita origens de fora da sub-rede. Use apenas em uma LAN confiável, sem redirecionamento de porta no roteador.
 
-Suba apenas o frontend com `docker compose -f compose.yaml -f compose.lan.yaml up -d --build --no-deps --wait frontend`. Em `http://192.168.0.121:3000`, o Nginx serve a SPA e o proxy `/api/*` em modo somente leitura (GET e HEAD); ações de escrita retornam HTTP 403. Use `http://127.0.0.1:3000` no host para gerar bilhetes, iniciar experimentos ou disparar a coleta. Para desativar a publicação LAN, execute `docker compose up -d --no-deps --wait frontend` sem o arquivo adicional. Se o IP mudar, desative o acesso LAN e revise o binding e o firewall antes de republicar.
+Suba apenas o frontend com `docker compose -f compose.yaml -f compose.lan.yaml up -d --build --no-deps --wait frontend`. Em `http://192.168.0.121:3000`, o Nginx serve a SPA e o proxy `/api/*` com leitura (GET/HEAD) e apenas duas escritas permitidas: `POST /api/suggestions` (gerar bilhetes) e `POST /api/experiments` (backtests/simulações). Essas escritas exigem `X-Requested-With: cassino` e `Origin` igual ao `Host` (mesma origem; bloqueia CSRF de outros sites). Qualquer outra escrita (ex.: `POST /api/admin/ingestion`) retorna HTTP 403; use `http://127.0.0.1:3000` no host para disparar a coleta e administrar. Para desativar a publicação LAN, execute `docker compose up -d --no-deps --wait frontend` sem o arquivo adicional. Se o IP mudar, desative o acesso LAN e revise o binding e o firewall antes de republicar.
 
 ### Migrations (banco existente)
 `001-base.sh` roda apenas na primeira inicialização do volume. As demais (`infra/postgres/00N-*.sql`) são aplicadas **uma vez**, como superusuário, em ordem, e registradas em `schema_migration`:

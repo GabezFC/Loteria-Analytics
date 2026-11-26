@@ -1,0 +1,19 @@
+# Launcher app opt-in only; requires compose.local.yaml first. Never combine with legacy LAN.
+# Compose >= 2.24.4. Relative paths resolve against --project-directory (app assets).
+services:
+  frontend:
+    ports: !override
+      - {host_ip: 127.0.0.1, published: '${CASSINO_APP_PORT:-3000}', target: 80, protocol: tcp}
+      - {host_ip: '${CASSINO_LAN_IP:?run LAN bootstrap}', published: '${CASSINO_LAN_PORT:?run LAN bootstrap}', target: 8443, protocol: tcp}
+    volumes:
+
+      - type: bind
+        source: '${CASSINO_LAN_STATE:?run LAN bootstrap}/tls.conf'
+        target: /etc/nginx/conf.d/cassino-lan.conf
+        read_only: true
+        bind: {create_host_path: false}
+      - type: bind
+        source: '${CASSINO_LAN_STATE:?run LAN bootstrap}/credentials'
+        target: /etc/nginx/cassino-lan
+        read_only: true
+        bind: {create_host_path: false}

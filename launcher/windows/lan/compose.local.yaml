@@ -1,0 +1,14 @@
+# Always apply to the staged launcher app, including with LAN disabled.
+services:
+  frontend:
+    volumes:
+      - type: bind
+        source: ./lan/local.conf
+        target: /etc/nginx/conf.d/default.conf
+        read_only: true
+        bind: {create_host_path: false}
+      - type: bind
+        source: ./lan/proxy.inc
+        target: /etc/nginx/cassino-proxy.inc
+        read_only: true
+        bind: {create_host_path: false}

@@ -1,0 +1,4 @@
+# Recreated from canonical files by ../integration/stage_assets.py.
+/compose.yaml
+/compose.admin.yaml
+/infra/

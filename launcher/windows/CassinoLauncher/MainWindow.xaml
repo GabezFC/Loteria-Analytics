@@ -1,0 +1,82 @@
+<Window x:Class="CassinoLauncher.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Cassino Launcher" Width="820" Height="640" MinWidth="520" MinHeight="520"
+        WindowStartupLocation="CenterScreen" xml:lang="pt-BR" FontSize="14">
+    <Window.Resources>
+        <Style TargetType="Button">
+            <Setter Property="Padding" Value="12,5" />
+            <Setter Property="Margin" Value="0,0,8,8" />
+            <Setter Property="MinHeight" Value="32" />
+        </Style>
+    </Window.Resources>
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <StackPanel Margin="0,0,0,16">
+            <TextBlock Text="Cassino" FontSize="28" FontWeight="SemiBold" />
+            <TextBlock Text="Loteria Analytics · serviços locais" />
+        </StackPanel>
+
+        <WrapPanel Grid.Row="1">
+            <Button x:Name="StartButton" Content="_Iniciar" Click="Start_Click" />
+            <Button x:Name="StopButton" Content="_Parar" Click="Stop_Click" />
+            <Button x:Name="RestartButton" Content="_Reiniciar" Click="Restart_Click" />
+            <Button x:Name="DashboardButton" Content="Abrir _dashboard" Click="Dashboard_Click" />
+            <Button x:Name="BackupButton" Content="Criar _backup" Click="Backup_Click" />
+            <Button x:Name="VerifyBackupButton" Content="_Verificar backup" Click="VerifyBackup_Click" />
+            <Button x:Name="CancelButton" Content="_Cancelar operação" IsEnabled="False" Click="Cancel_Click" />
+        </WrapPanel>
+
+        <StackPanel Grid.Row="2" Margin="0,0,0,12">
+            <TextBlock x:Name="OperationText" Text="Pronto." TextWrapping="Wrap"
+                       FontWeight="SemiBold" AutomationProperties.LiveSetting="Polite" />
+            <ProgressBar x:Name="OperationProgress" Height="5" Margin="0,6,0,0"
+                         Visibility="Collapsed" AutomationProperties.Name="Progresso da operação" />
+            <TextBox x:Name="OperationError" IsReadOnly="True" Visibility="Collapsed"
+                     TextWrapping="Wrap" MaxHeight="92" VerticalScrollBarVisibility="Auto"
+                     Margin="0,6,0,0" AutomationProperties.Name="Detalhes do erro" />
+        </StackPanel>
+
+        <TabControl Grid.Row="3">
+            <TabItem Header="_Serviços">
+                <DockPanel Margin="12">
+                    <Button x:Name="StatusButton" DockPanel.Dock="Top" HorizontalAlignment="Left"
+                            Content="_Atualizar status" Click="Status_Click" />
+                    <TextBlock x:Name="StatusHint" DockPanel.Dock="Top" Text="Status ainda não consultado."
+                               Margin="0,0,0,8" TextWrapping="Wrap" />
+                    <DataGrid x:Name="ServicesGrid" IsReadOnly="True" AutoGenerateColumns="False"
+                              CanUserAddRows="False" CanUserDeleteRows="False"
+                              AutomationProperties.Name="Status por serviço">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Serviço" Binding="{Binding Service}" Width="2*" />
+                            <DataGridTextColumn Header="Estado" Binding="{Binding State}" Width="*" />
+                            <DataGridTextColumn Header="Saúde" Binding="{Binding Health}" Width="*" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </DockPanel>
+            </TabItem>
+            <TabItem Header="_Logs">
+                <DockPanel Margin="12">
+                    <Button x:Name="LogsButton" DockPanel.Dock="Top" HorizontalAlignment="Left"
+                            Content="Atuali_zar logs" Click="Logs_Click" />
+                    <TextBox x:Name="LogsText" IsReadOnly="True" Text="Logs ainda não consultados."
+                             TextWrapping="NoWrap" FontFamily="Consolas"
+                             HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"
+                             AutomationProperties.Name="Logs do Cassino" />
+                </DockPanel>
+            </TabItem>
+        </TabControl>
+
+        <TextBlock Grid.Row="4" Margin="0,12,0,0" TextWrapping="Wrap">
+            Se o Docker Desktop estiver ausente, <Hyperlink x:Name="DockerHelpLink" NavigateUri="https://docs.docker.com/desktop/setup/install/windows-install/" Click="DockerHelp_Click">veja a instalação oficial para Windows</Hyperlink>.
+            Fechar a janela cancela a operação atual, mas não para serviços já iniciados nem apaga dados.
+        </TextBlock>
+    </Grid>
+</Window>

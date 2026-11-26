@@ -1,0 +1,16 @@
+# Somente em pacotes de release. Combine com compose.yaml: docker compose -f compose.yaml -f compose.release.yaml
+# Substitui o build local por imagens GHCR com TAG DE VERSAO (nunca latest). Ajuste OWNER na publicacao.
+# CASSINO_VERSION vem do .env gerado pelo launcher (obrigatorio: sem padrao, sem latest).
+services:
+  backend:
+    image: "ghcr.io/OWNER/cassino-backend:${CASSINO_VERSION:?defina CASSINO_VERSION}"
+    pull_policy: missing
+  frontend:
+    image: "ghcr.io/OWNER/cassino-frontend:${CASSINO_VERSION:?defina CASSINO_VERSION}"
+    pull_policy: missing
+  coletor:
+    image: "ghcr.io/OWNER/cassino-workers:${CASSINO_VERSION:?defina CASSINO_VERSION}"
+    pull_policy: missing
+  analisador:
+    image: "ghcr.io/OWNER/cassino-workers:${CASSINO_VERSION:?defina CASSINO_VERSION}"
+    pull_policy: missing

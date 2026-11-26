@@ -1,0 +1,11 @@
+# Test only: drop unrelated services and all persistent volumes.
+services:
+  cloudbeaver: !reset null
+  coletor: !reset null
+  analisador: !reset null
+  postgres:
+    volumes: !override
+      - ./infra/postgres/001-base.sh:/docker-entrypoint-initdb.d/001-base.sh:ro
+    tmpfs:
+      - /var/lib/postgresql/data
+volumes: !override {}
